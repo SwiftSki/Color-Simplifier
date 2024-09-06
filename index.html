@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Color Simplifier</title>
+    <style>
+        body {
+            color: white;
+            background-color: gray;
+        }
+
+        #colors {
+            position: fixed;
+            left: 0px;
+            top: 0px;
+            width: 100px;
+            height: 100%;
+            margin: 5px;
+        }
+
+        #file-input {
+            position: absolute;
+            top: 0px;
+            left: 100px;
+            width: auto;
+            height: 20px;
+            margin: 5px;
+        }
+
+        #algo-choice {
+            position: absolute;
+            top: 30px;
+            left: 100px;
+            width: auto;
+            height: auto;
+            margin: auto;
+        }
+
+        #outs {
+            position: absolute;
+            top: 50px;
+            left: 100px;
+            margin: 5px;
+            width: auto;
+            height: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="file-input">
+        <input type="file" id="myFile" />
+        <button onclick="render()">rerender</button>
+    </div>
+
+    <div id="algo-choice">
+		Algorithm: <select id="algorithm">
+			<option value="pythag">Pythagorean Theorem</option>
+			<option value="deltae">DeltaE</option>
+		</select>
+	</div>
+
+    <div id="colors"> <!--color list-->
+        <input type="color" id="color" />
+        <button onclick=" addColor()">add</button>
+        <p>click a color to remove it</p>
+    </div>
+    <div id="outs">
+        <img id="output">
+        <!-- <p id="fileOutput"></p> -->
+        <canvas id="viewport" hidden></canvas>
+        <canvas id="end"></canvas>
+    </div>
+    <script>
+        var img = document.getElementById("output");
+        var myFile = document.getElementById("myFile");
+
+        var fileOutput = document.getElementById("fileOutput");
+
+        myFile.addEventListener('change', function () {
+
+            var fileReader = new FileReader();
+
+            fileReader.onload = function () {
+
+                fileOutput.textContent = fileReader.result;
+
+            }
+
+            // fileReader.readAsText(this.files[0]);
+            readImage(this.files[0]);
+
+        });
+        function readImage(file) {
+
+            // Check if the file is an image.
+
+            if (file.type && !file.type.startsWith('image/')) {
+
+                console.log('File is not an image.', file.type, file);
+
+                return;
+
+            }
+
+            const reader = new FileReader();
+
+            reader.addEventListener('load', (event) => {
+
+                img.src = event.target.result;
+
+            });
+
+            reader.readAsDataURL(file);
+
+        }
+
+	// 3d pythagorean theorem to compare colors
+	function pythag(rgbA, rgbB){
+	    return Math.sqrt(Math.pow(rgbA[0] - rgbB[0], 2) + Math.pow(rgbA[1] - rgbB[1], 2) + Math.pow(rgbA[2] - rgbB[2], 2));
+	}
+
+        function deltaE(rgbA, rgbB) { //some witchcraft to compare colors (taken from StackOverflow)
+            let labA = rgb2lab(rgbA);
+            let labB = rgb2lab(rgbB);
+            let deltaL = labA[0] - labB[0];
+            let deltaA = labA[1] - labB[1];
+            let deltaB = labA[2] - labB[2];
+            let c1 = Math.sqrt(labA[1] * labA[1] + labA[2] * labA[2]);
+            let c2 = Math.sqrt(labB[1] * labB[1] + labB[2] * labB[2]);
+            let deltaC = c1 - c2;
+            let deltaH = deltaA * deltaA + deltaB * deltaB - deltaC * deltaC;
+            deltaH = deltaH < 0 ? 0 : Math.sqrt(deltaH);
+            let sc = 1.0 + 0.045 * c1;
+            let sh = 1.0 + 0.015 * c1;
+            let deltaLKlsl = deltaL / (1.0);
+            let deltaCkcsc = deltaC / (sc);
+            let deltaHkhsh = deltaH / (sh);
+            let i = deltaLKlsl * deltaLKlsl + deltaCkcsc * deltaCkcsc + deltaHkhsh * deltaHkhsh;
+            return i < 0 ? 0 : Math.sqrt(i);
+        }
+
+        function rgb2lab(rgb) { //witchcraft dependency
+            let r = rgb[0] / 255, g = rgb[1] / 255, b = rgb[2] / 255, x, y, z;
+            r = (r > 0.04045) ? Math.pow((r + 0.055) / 1.055, 2.4) : r / 12.92;
+            g = (g > 0.04045) ? Math.pow((g + 0.055) / 1.055, 2.4) : g / 12.92;
+            b = (b > 0.04045) ? Math.pow((b + 0.055) / 1.055, 2.4) : b / 12.92;
+            x = (r * 0.4124 + g * 0.3576 + b * 0.1805) / 0.95047;
+            y = (r * 0.2126 + g * 0.7152 + b * 0.0722) / 1.00000;
+            z = (r * 0.0193 + g * 0.1192 + b * 0.9505) / 1.08883;
+            x = (x > 0.008856) ? Math.pow(x, 1 / 3) : (7.787 * x) + 16 / 116;
+            y = (y > 0.008856) ? Math.pow(y, 1 / 3) : (7.787 * y) + 16 / 116;
+            z = (z > 0.008856) ? Math.pow(z, 1 / 3) : (7.787 * z) + 16 / 116;
+            return [(116 * y) - 16, 500 * (x - y), 200 * (y - z)]
+        }
+	
+        function rgb(r, g, b) {
+            return [r, g, b, 255];
+        }
+
+        var colors = []; //list of RGB colors that will be used in the product
+
+        function addColor() {
+            let color = document.getElementById("color").value; //value in HEX
+
+            //add to GUI
+            let elem = document.createElement("button");
+            elem.style = "width:50px; height:30px; margin-top:5px; margin-left:25px; background:" + color + ";";
+            elem.onclick = () => {
+                let el = document.activeElement;
+                //remove color from colors list
+                colors.map((val, i) => {
+                    let same = true;
+                    for (let i = 0; i < val.length; i++) { //compare arrays
+                        if (eval(el.style.background)[i] != val[i]) {
+                            same = false;
+                            break;
+                        }
+                    }
+                    if (same) {
+                        colors.splice(i, 1);
+                        return;
+                    }
+                });
+                el.remove();
+            }
+            document.getElementById("colors").appendChild(elem);
+
+            //convert hex to rgb
+            console.log(color);
+            let r = parseInt(color.substring(1, 3), 16);
+            let g = parseInt(color.substring(3, 5), 16);
+            let b = parseInt(color.substring(5, 7), 16);
+            console.log(r, g, b);
+
+            colors.push(rgb(r, g, b)); //add to color list
+        }
+
+        var canvas, ctx, end, imgData, data, column, output, outputBin;
+        var x = 0, y = 0, count = 0, a = Math.abs;
+
+        function render() {
+            canvas = document.getElementById('viewport');
+            ctx = canvas.getContext('2d');
+            end = document.getElementById('end');
+
+	    // get image algorithm
+	    var compare = (document.getElementById("algorithm").value == "deltae")? deltaE : pythag;
+
+            canvas.height = img.height; //set sample canvas dimensions
+            canvas.width = img.width;
+            end.height = img.height; //set output canvas dimensions
+            end.width = img.width;
+
+            ctx.drawImage(img, 0, 0); //stick image to sample canvas
+
+            //all at once(I have my reasons I swear)
+            output = [];
+            imgData = ctx.getImageData(0, 0, canvas.width, canvas.height); //export image as list of RGBA vals
+            data = imgData.data; //get pixel vals
+            for (let i = 0; i < data.length; i += 4) {
+                var chosenColor = colors[0], closeness = Infinity;
+                for (var k = 1; k < colors.length; k++) {
+                    // var color = colors[k];
+                    let val = compare([data[i], data[i + 1], data[i + 2]], colors[k]); //closeness between img pixel and selected color
+                    if (val < closeness) {
+                        chosenColor = colors[k];
+                        closeness = val;
+                    }
+                }
+                output.push(chosenColor[0]);
+                output.push(chosenColor[1]);
+                output.push(chosenColor[2]);
+                output.push(255);
+                // var x = Math.floor((i/4) / height);
+                // var y = (i / 4) - (i / 4) % x;
+                // end.getContext('2d').putImageData(new ImageData(new Uint8ClampedArray([chosenColor[0], chosenColor[1], chosenColor[2], 255]), 1, 1), x, y);
+
+            }
+            console.log(output.length);
+            outputBin = new Uint8ClampedArray(output);
+            end.getContext('2d').putImageData(new ImageData(outputBin, img.width, img.height), 0, 0);
+
+        }
+    </script>
+</body>
+
+</html>
